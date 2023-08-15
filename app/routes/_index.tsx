@@ -34,7 +34,8 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
 
   const MAP_WIDTH = 100
   const MAP_HEIGHT = 50
-  const NUM_SEEDS = 5
+  const NUM_SEEDS = 10
+  const STRETCH_COEFF = 11
   const worldMap = []
   const seedLocations = {}
   const TERRAIN_TYPES = ['F', 'F', 'F', 'M', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P']
@@ -73,10 +74,11 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
     for (const seed_row of Object.keys(seedLocations)) {
       const seed_col = seedLocations[seed_row]
       const distance = Math.sqrt(Math.abs(seed_row - row_i) ** 2 + Math.abs(seed_col - col_i) ** 2)
-      distanceScore += distance
+
+      distanceScore += distance || 1
     }
 
-    return distanceScore / 5
+    return distanceScore / NUM_SEEDS
   }
 
   for (let i = 0; i <= MAP_HEIGHT; i++) {
@@ -85,7 +87,7 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
       const point = [i, j]
       const distanceFromNearestSeed = getDistanceFromNearestSeed(point)
       const distanceScore = getDistanceScore(point)
-      const isLand = (seedLocations[i] && seedLocations[i].includes(j)) || (distanceScore < 60 && distanceFromNearestSeed < (Math.random() * 10) + 10)
+      const isLand = (seedLocations[i] && seedLocations[i].includes(j)) || (distanceScore < 60 && distanceFromNearestSeed < (Math.random() * STRETCH_COEFF) + STRETCH_COEFF)
       if (isLand) {
         const terrainType = TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)]
         worldMap[i][j] = terrainType
