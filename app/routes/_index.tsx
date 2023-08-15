@@ -32,21 +32,44 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
 
   /// ...resolve loader
 
-  return json({ session })
-}
-
-export default function Index() {
-  const { session } = useLoaderData()
-  const actionData = useActionData()
   const MAP_WIDTH = 100
   const MAP_HEIGHT = 50
+  const NUM_SEEDS = 5
   const worldMap = []
+  const seedLocations = {}
+
+  for (let i = 0; i < NUM_SEEDS; i++) {
+    const row_i = Math.floor(Math.random() * MAP_HEIGHT)
+    const col_i = Math.floor(Math.random() * MAP_WIDTH)
+    if (seedLocations[row_i]) {
+      seedLocations[row_i].push(col_i)
+    } else {
+      seedLocations[row_i] = [col_i]
+    }
+  }
+
+  const getDistanceFromNearestSeed = (point) => {
+    const [row_i, col_i] = point
+
+    let nearestDistance = Math.max(MAP_WIDTH, MAP_HEIGHT)
+
+    for (const seed_row of Object.keys(seedLocations)) {
+      const seed_col = seedLocations[seed_row]
+      const distance = Math.sqrt(Math.abs(seed_row - row_i) ** 2 + Math.abs(seed_col - col_i) ** 2)
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+      }
+    }
+
+    return nearestDistance
+  }
 
   for (let i = 0; i < MAP_HEIGHT; i++) {
     worldMap[i] = []
     for (let j = 0; j < MAP_WIDTH; j++) {
-      // const isLand = Math.random() > 0.3
-      const isLand = i > 20 && i < 40 && j > 45 && j < 75
+      const point = [i, j]
+      const distanceFromNearestSeed = getDistanceFromNearestSeed(point)
+      const isLand = (seedLocations[i] && seedLocations[i].includes(j)) || distanceFromNearestSeed < (Math.random() * 10) + 10
       if (isLand) {
         worldMap[i][j] = '='
         continue
@@ -54,6 +77,14 @@ export default function Index() {
       worldMap[i][j] = '~'
     }
   }
+
+
+  return json({ session, worldMap })
+}
+
+export default function Index() {
+  const { session, worldMap } = useLoaderData()
+  const actionData = useActionData()
 
   return (
     <div>
