@@ -37,6 +37,7 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
   const NUM_SEEDS = 5
   const worldMap = []
   const seedLocations = {}
+  const TERRAIN_TYPES = ['F', 'F', 'F', 'M', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P']
 
   for (let i = 0; i < NUM_SEEDS; i++) {
     const row_i = Math.floor(Math.random() * MAP_HEIGHT)
@@ -64,14 +65,30 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
     return nearestDistance
   }
 
-  for (let i = 0; i < MAP_HEIGHT; i++) {
+  const getDistanceScore = (point) => {
+    const [row_i, col_i] = point
+
+    let distanceScore = 0
+
+    for (const seed_row of Object.keys(seedLocations)) {
+      const seed_col = seedLocations[seed_row]
+      const distance = Math.sqrt(Math.abs(seed_row - row_i) ** 2 + Math.abs(seed_col - col_i) ** 2)
+      distanceScore += distance
+    }
+
+    return distanceScore / 5
+  }
+
+  for (let i = 0; i <= MAP_HEIGHT; i++) {
     worldMap[i] = []
-    for (let j = 0; j < MAP_WIDTH; j++) {
+    for (let j = 0; j <= MAP_WIDTH; j++) {
       const point = [i, j]
       const distanceFromNearestSeed = getDistanceFromNearestSeed(point)
-      const isLand = (seedLocations[i] && seedLocations[i].includes(j)) || distanceFromNearestSeed < (Math.random() * 10) + 10
+      const distanceScore = getDistanceScore(point)
+      const isLand = (seedLocations[i] && seedLocations[i].includes(j)) || (distanceScore < 60 && distanceFromNearestSeed < (Math.random() * 10) + 10)
       if (isLand) {
-        worldMap[i][j] = '='
+        const terrainType = TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)]
+        worldMap[i][j] = terrainType
         continue
       }
       worldMap[i][j] = '~'
@@ -86,16 +103,24 @@ export default function Index() {
   const { session, worldMap } = useLoaderData()
   const actionData = useActionData()
 
+  const TERRAIN_COLORS = {
+    'F': 'bg-green-700',
+    'P': 'bg-yellow-400',
+    'M': 'bg-gray-400'
+  }
+
+  const SHOW_VALUES = false
+
   return (
     <div>
-      <div className="grid grid-cols-[100] grid-rows-[100] w-full">
+      <div className="w-full">
         {
           worldMap.map((row, row_i) => {
             return (
               <div className="flex grow" key={row_i.toString()}>
                 {
                   row.map((value, col_i) => (
-                    <div className={`flex grow ${value == '~' ? 'bg-blue-300' : 'bg-green-600'}`} key={`${row.toString()}-${col_i.toString()}`}>{value}</div>
+                    <div className={`flex grow w-full aspect-square ${value == '~' ? 'bg-blue-300' : TERRAIN_COLORS[value]}`} key={`${row.toString()}-${col_i.toString()}`}>{SHOW_VALUES ? value : ' '}</div>
                   ))
                 }
               </div>
