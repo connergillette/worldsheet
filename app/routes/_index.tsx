@@ -128,21 +128,21 @@ export default function Index() {
   }, [numSeeds, stretch, iteration])
 
   return (
-    <div>
-      <div className="flex gap-2">
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2 justify-center">
         <button onClick={() => setShowDistances(!showDistances)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Show Seed Distances</button>
         <button onClick={() => setShowValues(!showValues)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Show Terrain Values</button>
         <div className="flex gap-2">
           Num Seeds
-          <input type="number" value={numSeeds} onChange={(e) => setNumSeeds(e.target.value)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-min" />
+          <input type="number" value={numSeeds} onChange={(e) => setNumSeeds(e.target.value)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" />
         </div>     
         <div className="flex gap-2">
           Stretch factor
-          <input type="number" value={stretch} onChange={(e) => setStretch(parseInt(e.target.value))} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-min" />
+          <input type="number" value={stretch} onChange={(e) => setStretch(parseInt(e.target.value))} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" />
         </div>     
         <button onClick={() => setIteration(iteration + 1)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Regenerate</button>
       </div>
-      <div className="w-full">
+      <div className="w-full rounded-md overflow-hidden">
         {
           finalWorldMap.map((row, row_i) => {
             return (
