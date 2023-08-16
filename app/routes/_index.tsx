@@ -43,7 +43,6 @@ export const loader: LoaderFunction = async ({ request, params }: LoaderArgs) =>
 
   /// ...resolve loader
 
-  
   const MAP_WIDTH = 100
   const MAP_HEIGHT = 50
   const worldMap = []
@@ -119,6 +118,7 @@ export default function Index() {
   const [seedMultiplicationChance, setSeedMultiplicationChance] = useState(DEFAULT_SEED_MULTIPLICATION_CHANCE)
   const [iteration, setIteration] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
+  const [hoveredTile, setHoveredTile] = useState(null)
   
   const { session, worldMap, seedLocations } = useLoaderData()
   const actionData = useActionData()
@@ -177,13 +177,14 @@ export default function Index() {
               <div className="flex grow text-black" key={row_i.toString()}>
                 {
                   row.map((value, col_i) => {
-                    if (seedLocations[row_i] && seedLocations[row_i].includes(col_i)) {
-                      return (
-                        <div className={`flex grow w-full aspect-square text-xs bg-yellow-400`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
-                      )
-                    }
+                    const isSeedLocation = seedLocations[row_i] && seedLocations[row_i].includes(col_i)
                     return (
-                      <div className={`flex grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : (showTerrain ? TERRAIN_COLORS[value] : 'bg-gray-400')}`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
+                      <>
+                        <div className={`flex hover:outline outline-white relative grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : (showTerrain ? TERRAIN_COLORS[value] : (isSeedLocation ? 'bg-yellow-400' : 'bg-gray-400'))}`} key={`${row.toString()}-${col_i.toString()}`} onMouseOver={() => setHoveredTile(`${row_i}-${col_i}`)} onMouseLeave={() => setHoveredTile(null) }>
+                          {showValues ? value : ' '}
+                          <div className={`absolute pointer-events-none z-10 pl-10 ${hoveredTile === `${row_i}-${col_i}` ? '' : 'hidden'}`}>Tooltip {row_i}-{col_i} {value} {isSeedLocation ? '(Seed)' : ''}</div>
+                        </div>
+                      </>
                     )
                   })
                 }
