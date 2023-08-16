@@ -40,9 +40,12 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
 export default function Index() {
   const [finalWorldMap, setWorldMap] = useState([])
   const [finalSeedDistances, setSeedDistances] = useState([])
+  const [showTerrain, setShowTerrain] = useState(false)
   const [showDistances, setShowDistances] = useState(false)
+  const [seedLocations, setSeedLocations] = useState([])
   const [showValues, setShowValues] = useState(false)
-  const [numSeeds, setNumSeeds] = useState(10)
+  const [numSeeds, setNumSeeds] = useState(1)
+  const [seedPower, setSeedPower] = useState(70)
   const [stretch, setStretch] = useState(11)
   const [iteration, setIteration] = useState(1)
   
@@ -108,38 +111,53 @@ export default function Index() {
       worldMap[i] = []
       seedDistances[i] = []
       for (let j = 0; j <= MAP_WIDTH; j++) {
-        const point = [i, j]
-        const distanceFromNearestSeed = getDistanceFromNearestSeed(point)
-        const distanceScore = getDistanceScore(point)
-        const isLand = (seedLocations[i] && seedLocations[i].includes(j)) || (distanceScore < 70 && distanceFromNearestSeed < (Math.random() * stretch) + stretch)
-        if (isLand) {
-          const terrainType = TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)]
-          worldMap[i][j] = terrainType
-          seedDistances[i][j] = 100 - (Math.floor(distanceFromNearestSeed) * 5)
-          continue
-        }
         worldMap[i][j] = '~'
-        seedDistances[i][j] = -1
+      }
+    }
+
+    for (const row of Object.keys(seedLocations)) {
+      const seedRow = parseInt(row)
+      const seedCols = seedLocations[seedRow]
+
+      for (const seedCol of seedCols) {
+        const landMassHeight = Math.floor(Math.random() * (MAP_HEIGHT - seedRow)) + 20
+        let rowOffset = 0
+        let rowWidth = Math.floor(Math.random() * (MAP_WIDTH - seedCol)) + 1
+        for (let y = seedRow; y < Math.min(MAP_HEIGHT, seedRow + landMassHeight); y++) {
+          for (let i = seedCol + rowOffset; i < seedCol + rowWidth; i++) {
+            const terrainType = TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)]
+            worldMap[y][i] = terrainType
+          }
+          rowWidth = rowWidth + Math.floor(0.5 - Math.random() * (rowWidth / 4)) + 1
+          rowOffset = Math.floor(10 * ((0.5 - Math.random())))
+        }
+        console.log(landMassHeight)
       }
     }
 
     setWorldMap(worldMap)
     setSeedDistances(seedDistances)
-  }, [numSeeds, stretch, iteration])
+    setSeedLocations(seedLocations)
+  }, [numSeeds, stretch, iteration, seedPower])
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2 justify-center">
+        <button onClick={() => setShowTerrain(!showTerrain)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Toggle Terrain View</button>
         <button onClick={() => setShowDistances(!showDistances)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Show Seed Distances</button>
         <button onClick={() => setShowValues(!showValues)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Show Terrain Values</button>
         <div className="flex gap-2">
           Num Seeds
           <input type="number" value={numSeeds} onChange={(e) => setNumSeeds(parseInt(e.target.value))} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" />
-        </div>     
-        <div className="flex gap-2">
+        </div>
+        {/* <div className="flex gap-2">
           Stretch factor
           <input type="number" value={stretch} onChange={(e) => setStretch(parseInt(e.target.value))} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" />
-        </div>     
+        </div>
+        <div className="flex gap-2">
+          Seed power
+          <input type="number" value={seedPower} onChange={(e) => setSeedPower(parseInt(e.target.value))} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" />
+        </div> */}
         <button onClick={() => setIteration(iteration + 1)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Regenerate</button>
       </div>
       <div className="w-full rounded-md overflow-hidden">
@@ -149,18 +167,15 @@ export default function Index() {
               <div className="flex grow" key={row_i.toString()}>
                 {
                   row.map((value, col_i) => {
-                    if (showDistances) {
-                      if (value === '~') {
+                    if (Object.keys(seedLocations).includes(row_i.toString())) {
+                      if (seedLocations[row_i].includes(col_i)) {
                         return (
-                          <div className={`flex grow w-full aspect-square bg-blue-300 text-xs`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
+                          <div className={`flex grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : (showTerrain ? TERRAIN_COLORS[value] : 'bg-yellow-400')}`} key={`${row_i.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
                         )
                       }
-                      return (
-                        <div style={{opacity: `.${finalSeedDistances[row_i][col_i]}`, backgroundColor: 'orange'}} className={`flex grow w-full aspect-square text-xs`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
-                      )
                     }
                     return (
-                      <div className={`flex grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : TERRAIN_COLORS[value]}`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
+                      <div className={`flex grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : (showTerrain ? TERRAIN_COLORS[value] : 'bg-gray-400')}`} key={`${row_i.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
                     )
                   })
                 }
