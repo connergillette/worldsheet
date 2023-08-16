@@ -9,7 +9,7 @@ export default function Nav({ signOut, session }: Props) {
       <a href="/" className="py-3">
         <div className={`font-bold text-xl align-middle py-1 transition`}>worldsheet</div>
       </a>
-      <div className="flex justify-end align-middle gap-2 grow py-2">
+      {/* <div className="flex justify-end align-middle gap-2 grow py-2">
         {
           !session && (
             <>
@@ -25,7 +25,7 @@ export default function Nav({ signOut, session }: Props) {
             </>
           )
         }
-      </div>
+      </div> */}
     </div>
   )
 }
