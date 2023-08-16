@@ -1,7 +1,12 @@
 import { ActionFunction, LoaderArgs, LoaderFunction, json, redirect } from '@remix-run/node'
+import { Form } from '@remix-run/react'
 import { createServerClient } from '@supabase/auth-helpers-remix'
 import { useEffect, useState } from 'react'
 import { useActionData, useLoaderData } from 'react-router'
+
+const DEFAULT_NUM_SEEDS = 4
+const DEFAULT_SEED_LIFESPAN_MAX = 400
+const DEFAULT_SEED_MULTIPLICATION_CHANCE = 0.7
 
 export const action: ActionFunction = async ({ request }) => {
   const response = new Response()
@@ -19,10 +24,15 @@ export const action: ActionFunction = async ({ request }) => {
   return redirect('/')
 }
 
-export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
+export const loader: LoaderFunction = async ({ request, params }: LoaderArgs) => {
   const response = new Response()
   // an empty response is required for the auth helpers
   // to set cookies to manage auth
+  const url = new URL(request.url)
+  const search = new URLSearchParams(url.search)
+  const numSeeds = search.get('numSeeds') || DEFAULT_NUM_SEEDS
+  const seedLifespanMax = search.get('seedLifespanMax') || DEFAULT_SEED_LIFESPAN_MAX
+  const seedMultiplicationChance = search.get('seedMultiplicationChance') || DEFAULT_SEED_MULTIPLICATION_CHANCE
 
   const supabase = createServerClient(
     process.env.SUPABASE_URL || '',
@@ -33,134 +43,146 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
 
   /// ...resolve loader
 
+  const MAP_WIDTH = 100
+  const MAP_HEIGHT = 50
+  const worldMap = []
+  const seedDistances = []
+  const seedLocations = {}
 
-  return json({ session })
+  const TERRAIN_TYPES = ['F', 'F', 'F', 'M', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P']
+
+  const MARCH_DIRECTION_COORDS = {
+    0: [-1, 0], // up
+    1: [-1, 1], // up-right
+    2: [0, 1], // right
+    3: [1, 1], // down-right
+    4: [1, 0], // down
+    5: [1, -1], // down-left
+    6: [0, -1], // left
+    7: [-1, -1], // up-left
+  }
+
+  const march = (currentPosition: number[], seedLife: number, canMultiply: boolean) => {
+    while (seedLife > 0) {
+      const [row, col] = currentPosition
+      const [row_delta, col_delta] = MARCH_DIRECTION_COORDS[Math.floor(Math.random() * 7)]
+
+      const newRow = Math.min(Math.max(parseInt(row) + row_delta, 0), MAP_HEIGHT)
+      const newCol = Math.min(Math.max(parseInt(col) + col_delta, 0), MAP_WIDTH)
+
+      worldMap[newRow][newCol] = TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)]
+      currentPosition = [newRow, newCol]
+
+      if (canMultiply && Math.random() > seedMultiplicationChance) {
+        march([newRow, newCol], seedLife, false)
+      }
+
+      seedLife -= 1
+    }
+  }
+
+  for (let i = 0; i < numSeeds; i++) {
+    const row_i = Math.floor(Math.random() * MAP_HEIGHT)
+    const col_i = Math.floor(Math.random() * MAP_WIDTH)
+    if (seedLocations[row_i]) {
+      seedLocations[row_i].push(col_i)
+    } else {
+      seedLocations[row_i] = [col_i]
+    }
+  }
+
+  for (let i = 0; i <= MAP_HEIGHT; i++) {
+    worldMap[i] = []
+    seedDistances[i] = []
+    for (let j = 0; j <= MAP_WIDTH; j++) {
+      worldMap[i][j] = '~'
+      seedDistances[i][j] = -1
+    }
+  }
+
+  for (const seedRow of Object.keys(seedLocations)) {
+    for (const seedCol of seedLocations[seedRow]) {
+      const seedLife = Math.floor(Math.random() * seedLifespanMax) + 30
+      march([seedRow, seedCol], seedLife, true)
+    }
+  }
+
+  return json({ session, worldMap, seedLocations })
 }
 
 export default function Index() {
-  const [finalWorldMap, setWorldMap] = useState([])
-  const [finalSeedDistances, setSeedDistances] = useState([])
-  const [showDistances, setShowDistances] = useState(false)
+  const [showTerrain, setShowTerrain] = useState(false)
   const [showValues, setShowValues] = useState(false)
-  const [numSeeds, setNumSeeds] = useState(10)
-  const [stretch, setStretch] = useState(11)
+  const [numSeeds, setNumSeeds] = useState(DEFAULT_NUM_SEEDS)
+  const [seedLifespanMax, setSeedLifespanMax] = useState(DEFAULT_SEED_LIFESPAN_MAX)
+  const [seedMultiplicationChance, setSeedMultiplicationChance] = useState(DEFAULT_SEED_MULTIPLICATION_CHANCE)
   const [iteration, setIteration] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
   
-  const { session } = useLoaderData()
+  const { session, worldMap, seedLocations } = useLoaderData()
   const actionData = useActionData()
-  
+
   const TERRAIN_COLORS = {
     'F': 'bg-green-700',
-    'P': 'bg-yellow-400',
-    'M': 'bg-gray-400'
+    'P': 'bg-yellow-500',
+    'M': 'bg-gray-300'
   }
-  
+
   useEffect(() => {
-    const MAP_WIDTH = 100
-    const MAP_HEIGHT = 50
-    const worldMap = []
-    const seedDistances = []
-    const seedLocations = {}
-    const TERRAIN_TYPES = ['F', 'F', 'F', 'M', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P']
-  
-    const getDistanceFromNearestSeed = (point) => {
-      const [row_i, col_i] = point
-  
-      let nearestDistance = Math.max(MAP_WIDTH, MAP_HEIGHT)
-  
-      for (const seed_row of Object.keys(seedLocations)) {
-        const seed_col = seedLocations[seed_row]
-        const distance = Math.sqrt(Math.abs(seed_row - row_i) ** 2 + Math.abs(seed_col - col_i) ** 2)
-        if (distance < nearestDistance) {
-          nearestDistance = distance
-        }
-      }
-  
-      return nearestDistance
-    }
-  
-    const getDistanceScore = (point) => {
-      const [row_i, col_i] = point
-  
-      let distanceScore = 0
-  
-      for (const seed_row of Object.keys(seedLocations)) {
-        const seed_col = seedLocations[seed_row]
-        const distance = Math.sqrt(Math.abs(seed_row - row_i) ** 2 + Math.abs(seed_col - col_i) ** 2)
-  
-        distanceScore += distance || 1
-      }
-  
-      return distanceScore / numSeeds
-    }
-
-    for (let i = 0; i < numSeeds; i++) {
-      const row_i = Math.floor(Math.random() * MAP_HEIGHT)
-      const col_i = Math.floor(Math.random() * MAP_WIDTH)
-      if (seedLocations[row_i]) {
-        seedLocations[row_i].push(col_i)
-      } else {
-        seedLocations[row_i] = [col_i]
-      }
-    }
-  
-    for (let i = 0; i <= MAP_HEIGHT; i++) {
-      worldMap[i] = []
-      seedDistances[i] = []
-      for (let j = 0; j <= MAP_WIDTH; j++) {
-        const point = [i, j]
-        const distanceFromNearestSeed = getDistanceFromNearestSeed(point)
-        const distanceScore = getDistanceScore(point)
-        const isLand = (seedLocations[i] && seedLocations[i].includes(j)) || (distanceScore < 70 && distanceFromNearestSeed < (Math.random() * stretch) + stretch)
-        if (isLand) {
-          const terrainType = TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)]
-          worldMap[i][j] = terrainType
-          seedDistances[i][j] = 100 - (Math.floor(distanceFromNearestSeed) * 5)
-          continue
-        }
-        worldMap[i][j] = '~'
-        seedDistances[i][j] = -1
-      }
-    }
-
-    setWorldMap(worldMap)
-    setSeedDistances(seedDistances)
-  }, [numSeeds, stretch, iteration])
+    setIsLoading(false)
+  }, [worldMap])
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex gap-2 justify-center">
-        <button onClick={() => setShowDistances(!showDistances)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Show Seed Distances</button>
-        <button onClick={() => setShowValues(!showValues)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Show Terrain Values</button>
-        <div className="flex gap-2">
+      <Form className="flex gap-2 justify-center content-center" method="get" onSubmit={(() => setIsLoading(true))}>
+        <button onClick={() => setShowTerrain(!showTerrain)} className="rounded-md border-solid border-gray-200 border-[1px] px-2 py-1" name="showTerrain" type="button">Toggle Terrain Colors</button>
+        <button onClick={() => setShowValues(!showValues)} className="rounded-md border-solid border-gray-200 border-[1px] px-2 py-1" name="showTerrainValues" type="button">Show Terrain Codes</button>
+        <div className="flex gap-2 self-center">
           Num Seeds
-          <input type="number" value={numSeeds} onChange={(e) => setNumSeeds(parseInt(e.target.value))} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" />
-        </div>     
-        <div className="flex gap-2">
-          Stretch factor
-          <input type="number" value={stretch} onChange={(e) => setStretch(parseInt(e.target.value))} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" />
-        </div>     
-        <button onClick={() => setIteration(iteration + 1)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Regenerate</button>
-      </div>
-      <div className="w-full rounded-md overflow-hidden">
+          <input 
+            type="number" 
+            value={numSeeds} onChange={(e) => setNumSeeds(parseInt(e.target.value))}
+            className="bg-transparent rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" 
+            name="numSeeds"
+          />
+        </div>
+        <div className="flex gap-2 self-center">
+          Seed Lifespan Max
+          <input 
+            type="number" 
+            defaultValue={seedLifespanMax}
+            className="bg-transparent rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" 
+            name="seedLifespanMax"
+          />
+        </div>
+        <div className="flex gap-2 self-center">
+          Seed Multiplication Chance
+          <input 
+            type="number"
+            defaultValue={seedMultiplicationChance}
+            className="bg-transparent rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" 
+            name="seedMultiplicationChance"
+            step={0.01}
+            min={0}
+            max={1}
+          />
+        </div>
+        <button onClick={() => setIteration(iteration + 1)} className="rounded-md border-solid border-gray-200 border-[1px] px-2 py-1" type="submit">Regenerate</button>
+      </Form>
+      <div className={`w-full rounded-md overflow-hidden transition ${isLoading ? 'blur-md' : ''}`}>
         {
-          finalWorldMap.map((row, row_i) => {
+          worldMap.map((row, row_i) => {
             return (
-              <div className="flex grow" key={row_i.toString()}>
+              <div className="flex grow text-black" key={row_i.toString()}>
                 {
                   row.map((value, col_i) => {
-                    if (showDistances) {
-                      if (value === '~') {
-                        return (
-                          <div className={`flex grow w-full aspect-square bg-blue-300 text-xs`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
-                        )
-                      }
+                    if (seedLocations[row_i] && seedLocations[row_i].includes(col_i)) {
                       return (
-                        <div style={{opacity: `.${finalSeedDistances[row_i][col_i]}`, backgroundColor: 'orange'}} className={`flex grow w-full aspect-square text-xs`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
+                        <div className={`flex grow w-full aspect-square text-xs bg-yellow-400`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
                       )
                     }
                     return (
-                      <div className={`flex grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : TERRAIN_COLORS[value]}`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
+                      <div className={`flex grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : (showTerrain ? TERRAIN_COLORS[value] : 'bg-gray-400')}`} key={`${row.toString()}-${col_i.toString()}`}>{showValues ? value : ' '}</div>
                     )
                   })
                 }
