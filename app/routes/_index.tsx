@@ -37,6 +37,7 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
   const NUM_SEEDS = 10
   const STRETCH_COEFF = 11
   const worldMap = []
+  const seedDistances = []
   const seedLocations = {}
   const TERRAIN_TYPES = ['F', 'F', 'F', 'M', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P']
 
@@ -83,26 +84,29 @@ export const loader: LoaderFunction = async ({ request }: LoaderArgs) => {
 
   for (let i = 0; i <= MAP_HEIGHT; i++) {
     worldMap[i] = []
+    seedDistances[i] = []
     for (let j = 0; j <= MAP_WIDTH; j++) {
       const point = [i, j]
       const distanceFromNearestSeed = getDistanceFromNearestSeed(point)
       const distanceScore = getDistanceScore(point)
-      const isLand = (seedLocations[i] && seedLocations[i].includes(j)) || (distanceScore < 60 && distanceFromNearestSeed < (Math.random() * STRETCH_COEFF) + STRETCH_COEFF)
+      const isLand = (seedLocations[i] && seedLocations[i].includes(j)) || (distanceScore < 70 && distanceFromNearestSeed < (Math.random() * STRETCH_COEFF) + STRETCH_COEFF)
       if (isLand) {
         const terrainType = TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)]
         worldMap[i][j] = terrainType
+        seedDistances[i][j] = 100 - (Math.floor(distanceFromNearestSeed) * 5)
         continue
       }
       worldMap[i][j] = '~'
+      seedDistances[i][j] = -1
     }
   }
 
 
-  return json({ session, worldMap })
+  return json({ session, worldMap, seedDistances })
 }
 
 export default function Index() {
-  const { session, worldMap } = useLoaderData()
+  const { session, worldMap, seedDistances } = useLoaderData()
   const actionData = useActionData()
 
   const TERRAIN_COLORS = {
@@ -112,6 +116,7 @@ export default function Index() {
   }
 
   const SHOW_VALUES = false
+  const SHOW_DISTANCES = false
 
   return (
     <div>
@@ -121,9 +126,21 @@ export default function Index() {
             return (
               <div className="flex grow" key={row_i.toString()}>
                 {
-                  row.map((value, col_i) => (
-                    <div className={`flex grow w-full aspect-square ${value == '~' ? 'bg-blue-300' : TERRAIN_COLORS[value]}`} key={`${row.toString()}-${col_i.toString()}`}>{SHOW_VALUES ? value : ' '}</div>
-                  ))
+                  row.map((value, col_i) => {
+                    if (SHOW_DISTANCES) {
+                      if (value === '~') {
+                        return (
+                          <div className={`flex grow w-full aspect-square bg-blue-300`} key={`${row.toString()}-${col_i.toString()}`}>{SHOW_VALUES ? value : ' '}</div>
+                        )
+                      }
+                      return (
+                        <div style={{opacity: `.${seedDistances[row_i][col_i]}`, backgroundColor: 'orange'}} className={`flex grow w-full aspect-square`} key={`${row.toString()}-${col_i.toString()}`}>{SHOW_VALUES ? value : ' '}</div>
+                      )
+                    }
+                    return (
+                      <div className={`flex grow w-full aspect-square ${value === '~' ? 'bg-blue-300' : TERRAIN_COLORS[value]}`} key={`${row.toString()}-${col_i.toString()}`}>{SHOW_VALUES ? value : ' '}</div>
+                    )
+                  })
                 }
               </div>
             )
