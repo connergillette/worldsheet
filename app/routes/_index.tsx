@@ -134,7 +134,7 @@ export default function Index() {
         <button onClick={() => setShowValues(!showValues)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1">Show Terrain Values</button>
         <div className="flex gap-2">
           Num Seeds
-          <input type="number" value={numSeeds} onChange={(e) => setNumSeeds(e.target.value)} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" />
+          <input type="number" value={numSeeds} onChange={(e) => setNumSeeds(parseInt(e.target.value))} className="bg-gray-100 rounded-md border-solid border-gray-200 border-[1px] px-2 py-1 w-24" />
         </div>     
         <div className="flex gap-2">
           Stretch factor
