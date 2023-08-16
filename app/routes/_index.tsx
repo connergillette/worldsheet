@@ -180,9 +180,9 @@ export default function Index() {
                     const isSeedLocation = seedLocations[row_i] && seedLocations[row_i].includes(col_i)
                     return (
                       <>
-                        <div className={`flex hover:outline outline-white relative grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : (showTerrain ? TERRAIN_COLORS[value] : (isSeedLocation ? 'bg-yellow-400' : 'bg-gray-400'))}`} key={`${row.toString()}-${col_i.toString()}`} onMouseOver={() => setHoveredTile(`${row_i}-${col_i}`)} onMouseLeave={() => setHoveredTile(null) }>
+                        <div className={`flex border-solid border-transparent border-2 hover:border-white hover:scale-150 hover:z-10 transition relative grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : (showTerrain ? TERRAIN_COLORS[value] : (isSeedLocation ? 'bg-yellow-400' : 'bg-gray-400'))}`} key={`${row.toString()}-${col_i.toString()}`} onMouseOver={() => setHoveredTile(`${row_i}-${col_i}`)} onMouseLeave={() => setHoveredTile(null) }>
                           {showValues ? value : ' '}
-                          <div className={`absolute pointer-events-none z-10 pl-10 ${hoveredTile === `${row_i}-${col_i}` ? '' : 'hidden'}`}>Tooltip {row_i}-{col_i} {value} {isSeedLocation ? '(Seed)' : ''}</div>
+                          <span className={`absolute pointer-events-none z-10 ml-10 w-24 ${hoveredTile === `${row_i}-${col_i}` ? '' : 'hidden'}`}>({row_i}, {col_i}) {value} {isSeedLocation ? '(Seed)' : ''}</span>
                         </div>
                       </>
                     )
