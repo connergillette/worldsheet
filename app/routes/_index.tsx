@@ -43,6 +43,7 @@ export const loader: LoaderFunction = async ({ request, params }: LoaderArgs) =>
 
   /// ...resolve loader
 
+  
   const MAP_WIDTH = 100
   const MAP_HEIGHT = 50
   const worldMap = []
