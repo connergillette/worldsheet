@@ -49,7 +49,7 @@ export const loader: LoaderFunction = async ({ request, params }: LoaderArgs) =>
   const seedDistances = []
   const seedLocations = {}
 
-  const TERRAIN_TYPES = ['F', 'F', 'F', 'M', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P']
+  const TERRAIN_TYPES = ['P', 'P', 'P', 'P','F']
 
   const MARCH_DIRECTION_COORDS = {
     0: [-1, 0], // up
@@ -70,7 +70,11 @@ export const loader: LoaderFunction = async ({ request, params }: LoaderArgs) =>
       const newRow = Math.min(Math.max(parseInt(row) + row_delta, 0), MAP_HEIGHT)
       const newCol = Math.min(Math.max(parseInt(col) + col_delta, 0), MAP_WIDTH)
 
-      worldMap[newRow][newCol] = TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)]
+      if (canMultiply) {
+        worldMap[newRow][newCol] = 'M'
+      } else {
+        worldMap[newRow][newCol] = TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)]
+      }
       currentPosition = [newRow, newCol]
 
       if (canMultiply && Math.random() > seedMultiplicationChance) {
