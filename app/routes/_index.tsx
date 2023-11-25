@@ -1,7 +1,7 @@
 import { ActionFunction, LoaderArgs, LoaderFunction, json, redirect } from '@remix-run/node'
 import { Form } from '@remix-run/react'
 import { createServerClient } from '@supabase/auth-helpers-remix'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useActionData, useLoaderData } from 'react-router'
 
 const DEFAULT_NUM_SEEDS = 4
@@ -123,8 +123,13 @@ export default function Index() {
   const [iteration, setIteration] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [hoveredTile, setHoveredTile] = useState(null)
+  const [canvas, setCanvas] = useState(null)
+
+  const canvasRef = useRef(null)
   
   const { session, worldMap, seedLocations } = useLoaderData()
+  const [world, setWorld] = useState(worldMap)
+
   const actionData = useActionData()
 
   const TERRAIN_COLORS = {
@@ -133,9 +138,84 @@ export default function Index() {
     'M': 'bg-gray-300'
   }
 
+  const SIZE_FACTOR = 10
+
   useEffect(() => {
     setIsLoading(false)
+    setWorld(worldMap)
   }, [worldMap])
+
+  useEffect(() => {
+    if (canvasRef) {
+      drawMap()
+    }
+  }, [worldMap])
+
+  useEffect(() => {
+    if (canvas) {
+      canvas.addEventListener('mousemove', (e) => {
+        const x = e.offsetX
+        const y = e.offsetY
+
+        // console.log(Math.floor(x / SIZE_FACTOR), Math.floor(y / SIZE_FACTOR))
+        // context.fillStyle = 'gray'
+        // context.fillRect(Math.floor(x / SIZE_FACTOR) * SIZE_FACTOR, Math.floor(y / SIZE_FACTOR) * SIZE_FACTOR, SIZE_FACTOR, SIZE_FACTOR)
+        const copy = JSON.parse(JSON.stringify(worldMap))
+        const coordX = Math.floor(x / SIZE_FACTOR)
+        const coordY = Math.floor(y / SIZE_FACTOR)
+        copy[coordY][coordX] = 'H'
+        // setWorld(copy)
+        // drawMap()
+      })
+      // canvas.addEventListener('mousemove', (e) => {
+      //   const x = e.offsetX
+      //   const y = e.offsetY
+
+      //   const context = canvas.getContext('2d')
+      //   console.log(Math.floor(x / SIZE_FACTOR) * SIZE_FACTOR, Math.floor(y / SIZE_FACTOR) * SIZE_FACTOR)
+      //   // context.fillStyle = 'gray'
+      //   context.fillRect(Math.floor(x / SIZE_FACTOR) * SIZE_FACTOR, Math.floor(y / SIZE_FACTOR) * SIZE_FACTOR, SIZE_FACTOR, SIZE_FACTOR)
+      // })
+    }
+  }, [canvas])
+
+  const drawMap = () => {
+    const canvas = canvasRef.current
+    setCanvas(canvas)
+    canvas.style.width = 500
+    canvas.style.height = 250
+    // const dpi = window.devicePixelRatio
+    const context = canvas.getContext('2d')
+    // context.scale(dpi, dpi)
+    // context.translate(0.5, 0.5)
+
+    context.fillStyle = '#ffffff'
+    context.lineWidth = 1
+    for (let y = 0; y < 50; y++) {
+      for (let x = 0; x < 100; x++) {
+        const tile = world[y][x]
+        switch (tile){
+          case 'M':
+            context.fillStyle = 'gray'
+            break
+          case 'P':
+            context.fillStyle = 'yellow'
+            break
+          case 'F':
+            context.fillStyle = 'green'
+            break
+          case 'H':
+            context.fillStyle = 'red'
+            break
+          default:
+            context.fillStyle = 'cyan'
+            break
+        }
+        context.strokeRect(x * SIZE_FACTOR, y * SIZE_FACTOR, SIZE_FACTOR, SIZE_FACTOR)
+        context.fillRect(x * SIZE_FACTOR, y * SIZE_FACTOR, SIZE_FACTOR, SIZE_FACTOR)
+      }
+    }
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -174,28 +254,8 @@ export default function Index() {
         </div>
         <button onClick={() => setIteration(iteration + 1)} className="rounded-md border-solid border-gray-200 border-[1px] px-2 py-1" type="submit">Regenerate</button>
       </Form>
-      <div className={`w-full rounded-md overflow-hidden transition ${isLoading ? 'blur-md' : ''}`}>
-        {
-          worldMap.map((row, row_i) => {
-            return (
-              <div className="flex grow text-black" key={row_i.toString()}>
-                {
-                  row.map((value, col_i) => {
-                    const isSeedLocation = seedLocations[row_i] && seedLocations[row_i].includes(col_i)
-                    return (
-                      <>
-                        <div className={`flex border-solid border-transparent border-2 hover:border-white hover:scale-150 hover:z-10 transition relative grow w-full aspect-square text-xs ${value === '~' ? 'bg-blue-300' : (showTerrain ? TERRAIN_COLORS[value] : (isSeedLocation ? 'bg-yellow-400' : 'bg-gray-400'))}`} key={`${row.toString()}-${col_i.toString()}`} onMouseOver={() => setHoveredTile(`${row_i}-${col_i}`)} onMouseLeave={() => setHoveredTile(null) }>
-                          {showValues ? value : ' '}
-                          <span className={`absolute pointer-events-none z-10 ml-10 w-24 ${hoveredTile === `${row_i}-${col_i}` ? '' : 'hidden'}`}>({row_i}, {col_i}) {value} {isSeedLocation ? '(Seed)' : ''}</span>
-                        </div>
-                      </>
-                    )
-                  })
-                }
-              </div>
-            )
-          })
-        }
+      <div className="w-['1000px'] h-['500px'] mx-auto">
+        <canvas ref={canvasRef} width="1000" height="500" />
       </div>
     </div>
   );
